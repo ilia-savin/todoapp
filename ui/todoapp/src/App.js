@@ -1,66 +1,74 @@
+import React, { useState, useEffect } from 'react';
 import './App.css';
-import { Component } from 'react';
 
-class App extends Component {
+const App = () => {
+  const [notes, setNotes] = useState([]);
+  const [newNote, setNewNote] = useState('');
+  const API_URL = "http://localhost:5038/";
 
-  constructor(props) {
-    super(props);
-    this.state = {
-      notes:[]
+  useEffect(() => {
+    refreshNotes();
+  }, []);
+
+  const refreshNotes = async () => {
+    try {
+      const response = await fetch(API_URL + "api/todoapp/GetNotes");
+      const data = await response.json();
+      setNotes(data);
+    } catch (error) {
+      alert("Error loading notes");
     }
-  }
+  };
 
-  API_URL = "http://localhost:5038/";
+  const addNote = async () => {
+    if (!newNote.trim()) return alert("Note cannot be empty!");
+    const formData = new FormData();
+    formData.append("newNotes", newNote);
+    try {
+      await fetch(API_URL + "api/todoapp/AddNotes", {
+        method: "POST",
+        body: formData,
+      });
+      setNewNote('');
+      refreshNotes();
+    } catch (error) {
+      alert("Error adding note");
+    }
+  };
 
-  componentDidMount() {
-    this.refreshNotes();
-  }
+  const deleteNote = async (id) => {
+    if (!window.confirm("Are you sure?")) return;
+    try {
+      await fetch(API_URL + `api/todoapp/DeleteNotes?id=${id}`, {
+        method: "DELETE",
+      });
+      refreshNotes();
+    } catch (error) {
+      alert("Error Deleting Note");
+    }
+  };
 
-  async refreshNotes() {
-    fetch(this.API_URL + "api/todoapp/GetNotes").then(response=>response.json()).then(data => {
-      this.setState({notes:data})
-    })
-  }
-
-  async addClick() {
-    var newNotes = document.getElementById("newNotes").value;
-    const data = new FormData();
-    data.append("newNotes", newNotes);
-
-    fetch(this.API_URL + "api/todoapp/AddNotes", {
-      method: "POST",
-      body: data
-    }).then(res => res.json()).then((result) => {
-      alert(result);
-      this.refreshNotes();
-    })
-  }
-
-  async deleteClick(id) {
-    fetch(this.API_URL + "api/todoapp/DeleteNotes?id="+id, {
-      method: "DELETE",
-    }).then(res => res.json()).then((result) => {
-      alert(result);
-      this.refreshNotes();
-    })
-  }
-
-  render() {
-    const{notes}=this.state;
-    return (
-      <div className="App">
-        <h2>Todo App</h2>
-        <input id="newNotes"/>&nbsp;
-        <button onClick={() => this.addClick()}>Add Notes</button>
-        {notes.map(note=>
-          <p>
-            <b>* {note.description}</b>&nbsp;
-            <button onClick={() => this.deleteClick(note.id)}>Delete Notes</button>
-          </p>
-        )}
+  return (
+    <div className="App">
+      <h2>Todo App</h2>
+      <div className="input-container">
+        <input type="text" value={newNote} onChange={(e) => setNewNote(e.target.value)} placeholder="Add new note"/>
+        <button onClick={addNote}>Add</button>
       </div>
-    );
-  }
-}
+      <div className="notes-container">
+        <div className="notes-list">
+          {notes.map((note) => (
+            <div key={note.id} className="note-item">{note.description}</div>
+          ))}
+        </div>
+        <div className="button-container">
+          {notes.map((note) => (
+            <button key={note.id} onClick={() => deleteNote(note.id)}>Delete</button>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+};
 
 export default App;

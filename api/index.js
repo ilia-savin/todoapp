@@ -1,42 +1,77 @@
-var Express = require("express");
-var Mongoclient = require("mongodb").MongoClient;
-var cors = require("cors");
+const express = require("express");
+const { MongoClient } = require("mongodb");
+const cors = require("cors");
 const multer = require("multer");
 
-var app = Express();
+const app = express();
 app.use(cors());
+app.use(express.json());
 
-var CONNECTION_STRING = "mongodb+srv://admin:<db_password>@cluster0.yxa6i.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0";
+const upload = multer();
+const CONNECTION_STRING = "mongodb+srv://admin:admin@cluster0.yxa6i.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0";
+const DATABASE_NAME = "todoappdb";
+let database;
 
-var DATABASE = "todoappdb";
-var database;
+async function connectToDatabase() {
+    try {
+        const client = new MongoClient(CONNECTION_STRING);
+        await client.connect();
+        database = client.db(DATABASE_NAME);
+        console.log("MongoDB Connection Successful");
+    } catch (error) {
+        console.error("MongoDB Connection Error:", error);
+        process.exit(1);
+    }
+}
 
-app.listen(5038, () => {
-    Mongoclient.connect(CONNECTION_STRING, (error, client) => {
-        database = client.db(DATABASE);
-        console.log("Mongo DB Connection Successful")
-    });
-})
+const PORT = 5038;
+app.listen(PORT, async () => {
+    await connectToDatabase();
+    console.log(`The server is running on http://localhost:${PORT}`);
+});
 
-app.get('/api/todoapp/GetNotes', (request, response) => {
-    database.collection("todoappcollection").find({}).toArray((error, result) => {
-        response.send(result)
-    })
-})
+app.get('/api/todoapp/GetNotes', async (req, res) => {
+    try {
+        const notes = await database.collection("todoappcollection").find({}).toArray();
+        res.status(200).json(notes);
+    } catch (error) {
+        res.status(500).json({ message: "Error Fetching Notes", error });
+    }
+});
 
-app.post('/api/todoapp/AddNotes', multer().none(), (request, response) => {
-    database.collection("todoappcollection").count({}, function(error, numOfDocs) {
-        database.collection("todoappcollection").insertOne({
-            id:(numOfDocs + 1).toString(),
-            description:request.body.newNotes
+
+app.post('/api/todoapp/AddNotes', upload.none(), async (req, res) => {
+    try {
+        const { newNotes } = req.body;
+        if (!newNotes) {
+            return res.status(400).json({ message: "The Note Field Is Required" });
+        }
+
+        const noteCount = await database.collection("todoappcollection").countDocuments();
+        await database.collection("todoappcollection").insertOne({
+            id: (noteCount + 1).toString(),
+            description: newNotes
         });
-        response.json("Added Successfully");
-    })
-})
+        res.status(201).json({ message: "Note Added Successfully" });
+    } catch (error) {
+        res.status(500).json({ message: "Error Adding Note", error });
+    }
+});
 
-app.delete('/api/todoapp/DeleteNotes', (request, response) => {
-    database.collection("todoappcollection").deleteOne({
-        id:request.query.id
-    });
-    response.json("Deleted Successfully")
-})
+app.delete('/api/todoapp/DeleteNotes', async (req, res) => {
+    try {
+        const { id } = req.query;
+        if (!id) {
+            return res.status(400).json({ message: "ID Field Required" });
+        }
+
+        const result = await database.collection("todoappcollection").deleteOne({ id });
+        if (result.deletedCount === 0) {
+            return res.status(404).json({ message: "Note Is Not Found" });
+        }
+
+        res.status(200).json({ message: "Note Deleted Successfully" });
+    } catch (error) {
+        res.status(500).json({ message: "Error Deleting Note", error });
+    }
+});
