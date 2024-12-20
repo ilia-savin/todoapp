@@ -2,7 +2,7 @@
 
 A simple To-Do App built using the MERN stack, where you can add, edit, delete, and view tasks.
 
-# Technologies Used
+### Technologies Used
 
 - MongoDB: NoSQL database for storing tasks.
 
@@ -12,7 +12,7 @@ A simple To-Do App built using the MERN stack, where you can add, edit, delete, 
 
 - Node.js: Runtime environment for executing JavaScript on the server.
 
-# How to install
+### How to install
 
 1. Download the project.
 2. In `api/index.js`, change the `CONNECTION_STRING` to your own from your MongoDB account.
